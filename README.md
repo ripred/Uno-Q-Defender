@@ -1,8 +1,8 @@
-# Uno Q Defender (12x8 LED Matrix Edition)
+# Uno Q Defender (13x8 LED Matrix Edition)
 
 This is a fully playable Defender-style game adapted for the Uno onboard LED matrix.
 
-Because the matrix is only 12x8, this implementation preserves the core Defender loop and systems while compressing visuals:
+Because the matrix is only 13x8, this implementation preserves the core Defender loop and systems while compressing visuals:
 - Horizontal wraparound world
 - Terrain and human protection objective
 - Enemy set: Landers, Mutants, Bombers, Pods, Swarmers, Baiters
@@ -14,40 +14,113 @@ Because the matrix is only 12x8, this implementation preserves the core Defender
 ## File
 - Sketch: [Uno-Q-Defender.ino](/Volumes/trent/dev/Uno-Q-Defender/Uno-Q-Defender.ino)
 
-## Hardware Assumptions
-- Board with `Arduino_LED_Matrix` support and onboard 12x8 matrix
-- Analog joystick for movement:
-  - `A0`: horizontal
-  - `A1`: vertical
-- Buttons (active LOW with `INPUT_PULLUP`):
-  - `D2`: fire
-  - `D3`: smart bomb
-  - `D4`: hyperspace
-- Optional buzzer:
+## Input Support
+The game now supports multiple input backends at once (hybrid mode):
+- Analog joystick
+- Digital D-pad buttons
+- Action buttons
+- Serial keyboard commands (from terminal/serial monitor)
+- Optional `Keyboard.h` hook
+- Optional `Joystick.h` hook
+- 8 grayscale levels per LED (`setGrayscaleBits(3)`)
+
+Default firmware profile is board-safe for UNO Q onboard matrix:
+- external GPIO controls disabled by default (`ANALOG_JOYSTICK`, `DPAD`, `PIN_ACTION_BUTTONS`)
+- audio disabled by default
+- serial keyboard + demo/self-play enabled
+
+### Default Pins
+- Analog joystick:
+  - `A0`: X axis
+  - `A1`: Y axis
+  - `D5`: joystick button (mapped to Fire)
+- Action buttons (active LOW with `INPUT_PULLUP`):
+  - `D2`: Fire
+  - `D3`: Smart Bomb
+  - `D4`: Hyperspace
+- D-pad buttons (active LOW with `INPUT_PULLUP`):
+  - `D6`: Left
+  - `D7`: Right
+  - `D8`: Up
+  - `D10`: Down
+- Audio:
   - `D9`: piezo buzzer positive lead (negative to GND)
 
-All pin mappings are constants at the top of the sketch and can be changed quickly.
+All pin mappings are constants near the top of the sketch.
 
-## Controls
-- Joystick X/Y: move ship
-- Fire button: fire in facing direction
-- Smart bomb: destroy all active enemies and enemy shots
-- Hyperspace: random teleport with failure risk
-- Fire on title screen: start game
-- Fire on game-over screen: return to title
+### Serial Keyboard Controls (`115200`)
+- Movement:
+  - `W A S D`
+  - Arrow keys (`ESC [ A/B/C/D`) from terminals that send ANSI escapes
+  - Diagonal shortcuts: `Q E Z C`
+  - Stop: `X` or `0`
+- Actions:
+  - Fire: `Space`, `F`, or `J`
+  - Smart Bomb: `B` or `K`
+  - Hyperspace: `H` or `L`
 
-## Build / Upload
-Use Arduino IDE:
-1. Open [Uno-Q-Defender.ino](/Volumes/trent/dev/Uno-Q-Defender/Uno-Q-Defender.ino)
-2. Select your Uno board/port
-3. Verify and upload
+### Demo / Attract Mode
+- An autonomous self-play pilot is built in.
+- If no user input is detected for 60 seconds, demo mode starts automatically and plays the game.
+- Demo mode stops when:
+  - a user input is detected, or
+  - the demo run reaches game over.
+- After demo game over, the normal game-over screen is shown briefly, then demo auto-restarts.
+- Any user input during demo immediately returns to title (and `Fire` can start a normal game right away).
+
+### Optional `Keyboard.h` / `Joystick.h` Integration
+Optional compile-time toggles:
+- `DEFENDER_ENABLE_KEYBOARD_LIB`
+- `DEFENDER_ENABLE_JOYSTICK_LIB`
+
+If the header is available, the sketch exposes weak hooks you can override:
+- `bool defenderKeyboardPressed(uint8_t keycode)`
+- `void defenderJoystickSample(float* outX, float* outY, bool* outFire, bool* outSmart, bool* outHyper)`
+
+This avoids hard-coding one specific third-party API flavor of `Joystick.h`.
+
+## Build / Upload (CLI)
+Default build:
+```bash
+arduino-cli compile --fqbn arduino:zephyr:unoq /Volumes/trent/dev/Uno-Q-Defender
+```
+
+Enable optional library hooks:
+```bash
+arduino-cli compile --fqbn arduino:zephyr:unoq \
+  --build-property build.extra_flags="-DDEFENDER_ENABLE_KEYBOARD_LIB=1 -DDEFENDER_ENABLE_JOYSTICK_LIB=1" \
+  /Volumes/trent/dev/Uno-Q-Defender
+```
+
+Enable external wired controls/audio (if your wiring is known-safe for your board):
+```bash
+arduino-cli compile --fqbn arduino:zephyr:unoq \
+  --build-property build.extra_flags="-DDEFENDER_ENABLE_ANALOG_JOYSTICK=1 -DDEFENDER_ENABLE_DPAD=1 -DDEFENDER_ENABLE_PIN_ACTION_BUTTONS=1 -DDEFENDER_ENABLE_AUDIO=1" \
+  /Volumes/trent/dev/Uno-Q-Defender
+```
+
+Upload:
+```bash
+arduino-cli upload --fqbn arduino:zephyr:unoq -p <serial-port> /Volumes/trent/dev/Uno-Q-Defender
+```
+
+## Build / Upload (Arduino IDE)
+For Uno Q, use the Arduino board package that provides the `arduino:zephyr` core.
+
+Notes on IDE version:
+- Arduino CLI + current board package is validated in this repo.
+- Arduino IDE 1.8.19 is legacy and may not fully support newer Uno Q Zephyr tooling/workflows.
+- Recommended path for Uno Q is Arduino CLI or Arduino IDE 2.x.
 
 ## Gameplay Notes
+- Rendering uses all 8 gray levels with a depth-aware compositor (`z`-style layering).
+- Foreground sprites apply contrast edges when drawn over existing pixels so overlaps stay legible.
+- Gameplay view has 3 parallax layers (far stars, mid ridges, near haze) plus foreground terrain.
 - Top row is a compressed HUD/radar layer:
   - Left pixels: lives
   - Right pixels: smart bombs
   - Center pixels: wave markers / radar blips
-- Humans are tiny single-pixel entities due display constraints.
+- Humans and enemies use tiny shaded signatures tuned for overlap readability on 13x8.
 - The ship is left-biased to preserve Defender’s forward flight feel.
 
 ## Tuning Knobs
@@ -56,6 +129,7 @@ If you want more/less difficulty, edit constants in the sketch:
 - `BULLET_SPEED`
 - `ENEMY_BULLET_SPEED`
 - `FRAME_MS`
+- `JOYSTICK_Y_UP_SIGN`
 - Enemy spawn formulas in `initWave()`
 - Baiter timer in `maybeSpawnBaiter()`
 
