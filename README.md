@@ -1,5 +1,10 @@
 # Uno Q Defender (13x8 LED Matrix Edition)
 
+[![Arduino-lint](https://github.com/ripred/Uno-Q-Defender/actions/workflows/arduino-lint.yml/badge.svg)](https://github.com/ripred/Uno-Q-Defender/actions/workflows/arduino-lint.yml)
+[![License](https://flat.badgen.net/github/license/ripred/Uno-Q-Defender)](https://github.com/ripred/Uno-Q-Defender/blob/main/LICENSE)
+[![Stars](https://flat.badgen.net/github/stars/ripred/Uno-Q-Defender)](https://github.com/ripred/Uno-Q-Defender/stargazers)
+[![Forks](https://flat.badgen.net/github/forks/ripred/Uno-Q-Defender)](https://github.com/ripred/Uno-Q-Defender/network/members)
+
 This is a fully playable Defender-style game adapted for the Uno onboard LED matrix.
 
 Because the matrix is only 13x8, this implementation preserves the core Defender loop and systems while compressing visuals:
